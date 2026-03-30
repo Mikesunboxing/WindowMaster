@@ -19,8 +19,9 @@ It is built for multi‑monitor setups, HDMI/DP displays, and systems where wind
 
 Run this command in PowerShell:
 
-irm 'https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.ps1' | iex
-
+irm https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.zip -OutFile WM.zip
+Expand-Archive WM.zip -DestinationPath "$env:LOCALAPPDATA\WindowMaster" -Force
+powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\WindowMaster\WindowMaster.ps1"
 
 This will launch the installer and guide you through setup.
 
