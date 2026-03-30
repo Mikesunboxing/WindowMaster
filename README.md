@@ -21,6 +21,7 @@ Run this command in PowerShell:
 
 irm 'https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.ps1' | iex
 
+
 This will launch the installer and guide you through setup.
 
 ## 🛠️ Requirements
