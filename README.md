@@ -19,8 +19,7 @@ It is built for multi‑monitor setups, HDMI/DP displays, and systems where wind
 
 Run this command in PowerShell:
 
-https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.ps1 (raw.githubusercontent.com in Bing) | iex
-
+irm 'https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.ps1' | iex
 
 This will launch the installer and guide you through setup.
 
