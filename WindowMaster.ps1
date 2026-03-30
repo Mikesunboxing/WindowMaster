@@ -1,6 +1,6 @@
 #requires -Version 5.1
 # ============================================================
-#  WINDOWMASTER INSTALLER + ENGINE (UNIFIED BUILD)
+#  WINDOWMASTER INSTALLER + EMBEDDED ENGINE (UNIFIED BUILD)
 #  Author : Mike's Unboxing
 #  Name   : WindowMaster - Window Layout Anchor
 #  Version: 1.0.0
@@ -68,7 +68,7 @@ function Show-Header {
     Resize-Console
 
     $lines = @(
-        @{ Text = "WindowMaster Setup"; Color = "DarkYellow" }   # Orange-ish
+        @{ Text = "WindowMaster Setup"; Color = "DarkYellow" }
         @{ Text = "Window Layout Anchor & Monitor Wake Engine"; Color = "Yellow" }
         @{ Text = "Copyright (c) 2026 Mike's Unboxing."; Color = "White" }
         @{ Text = "All Rights Reserved. For Personal & Non Profit Use Only."; Color = "White" }
@@ -188,7 +188,6 @@ function Show-ContactFooter {
 $AppName        = "WindowMaster"
 $BasePath       = Join-Path $env:LOCALAPPDATA $AppName
 $MainScriptPath = Join-Path $BasePath "WindowMaster.ps1"
-$VbsPath        = Join-Path $BasePath "WindowMaster_Silent.vbs"
 $LogPath        = Join-Path $BasePath "WM_Debug.log"
 $ConfigPath     = Join-Path $BasePath "WM_Config.json"
 $AdaptiveFile   = Join-Path $BasePath "WM_WakeProfile.json"
@@ -196,8 +195,6 @@ $AdaptiveFile   = Join-Path $BasePath "WM_WakeProfile.json"
 $TaskFolderPath = "\$AppName\"
 $TaskNameMain   = "$AppName-MainLoop"
 $TaskNameLogon  = "$AppName-Logon"
-
-$EngineMarkerLine = "# WM_ENGINE_START"
 
 function Ensure-Folder {
     if (-not (Test-Path $BasePath)) {
@@ -492,7 +489,6 @@ function Run-InstallOrUpdate {
 
     Ensure-Folder
     Write-EngineFromSelf
-    Write-SilentVbs
     Ensure-TaskFolder
     Remove-ExistingTasks
     Register-MainLoopTask
@@ -543,9 +539,9 @@ function Run-DiagnosticsInstaller {
     if ($sleep) {
         Write-Host ("- System Sleep (AC) : {0} min" -f $sleep.AC)
         if ($isDesktop) {
-            Write-Host "- System Sleep (DC) : N/A"
+            Write-Host "- System Sleep (DC): N/A"
         } else {
-            Write-Host ("- System Sleep (DC) : {0} min" -f $sleep.DC)
+            Write-Host ("- System Sleep (DC): {0} min" -f $sleep.DC)
         }
     }
     Write-Host ""
@@ -561,7 +557,7 @@ function Run-DiagnosticsInstaller {
     Write-Host ""
 
     Write-Host "[FILES]" -ForegroundColor Yellow
-    foreach ($p in @($MainScriptPath,$VbsPath,$ConfigPath,$AdaptiveFile,$LogPath)) {
+    foreach ($p in @($MainScriptPath,$ConfigPath,$AdaptiveFile,$LogPath)) {
         $exists = if (Test-Path $p) { "Yes" } else { "No" }
         Write-Host ("- {0} : {1}" -f (Split-Path $p -Leaf), $exists)
     }
@@ -646,49 +642,18 @@ function Run-InstallerMenu {
 }
 
 # ============================================================
-#  SECTION 4 — ENGINE EXTRACTION + TASKS
+#  SECTION 4 — ENGINE FILE CREATION + TASKS (AMSI-SAFE)
 # ============================================================
 
 function Write-EngineFromSelf {
-    Write-Log "Extracting engine from combined script."
-
-    $full = $MyInvocation.MyCommand.Definition
-    if (-not $full) {
-        Write-Log "Unable to read script definition for extraction."
-        return
+    Write-Log "Writing embedded engine to: $MainScriptPath"
+    try {
+        Ensure-Folder
+        $EngineSource | Set-Content -Path $MainScriptPath -Encoding UTF8
+        Write-Log "Engine written successfully."
+    } catch {
+        Write-Log "Failed to write engine: $($_.Exception.Message)"
     }
-
-    $idx = $full.IndexOf($EngineMarkerLine)
-    if ($idx -lt 0) {
-        Write-Log "Engine marker not found. Extraction aborted."
-        return
-    }
-
-    $afterMarker = $full.Substring($idx)
-    $newlineIdx  = $afterMarker.IndexOf("`n")
-    if ($newlineIdx -ge 0) {
-        $engine = $afterMarker.Substring($newlineIdx + 1)
-    } else {
-        $engine = ""
-    }
-
-    if ([string]::IsNullOrWhiteSpace($engine)) {
-        Write-Log "Engine content appears empty after marker."
-        return
-    }
-
-    Set-Content -Path $MainScriptPath -Value $engine -Encoding UTF8
-    Write-Log "Engine written to: $MainScriptPath"
-}
-
-function Write-SilentVbs {
-    $escaped = $MainScriptPath.Replace('"','""')
-    $vbs = @"
-Set oShell = CreateObject("WScript.Shell")
-oShell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""$escaped"" -RunLoop", 0, False
-"@
-    Set-Content -Path $VbsPath -Value $vbs -Encoding ASCII
-    Write-Log "Created silent VBS launcher: $VbsPath"
 }
 
 function Ensure-TaskFolder {
@@ -704,7 +669,8 @@ function Remove-ExistingTasks {
 }
 
 function Register-MainLoopTask {
-    $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VbsPath`""
+    $psArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$MainScriptPath`" -RunLoop"
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $psArgs
     $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
     $trigger.Repetition.Interval = (New-TimeSpan -Minutes 2)
     $trigger.Repetition.Duration = [TimeSpan]::MaxValue
@@ -715,7 +681,8 @@ function Register-MainLoopTask {
 }
 
 function Register-LogonTask {
-    $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VbsPath`""
+    $psArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$MainScriptPath`" -RunLoop"
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $psArgs
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
@@ -752,10 +719,10 @@ if (-not $SkipMenu) {
 }
 
 # ============================================================
-# === WINDOWMASTER ENGINE (START OF ENGINE FILE) ============
-# ============================ WM_ENGINE_START ===============
+#  SECTION 6 — EMBEDDED ENGINE SOURCE (WRITTEN TO DISK)
 # ============================================================
 
+$EngineSource = @'
 param(
     [switch]$RunLoop,
     [switch]$Menu,
@@ -1027,7 +994,20 @@ function Invoke-Restore {
 # ============================================================
 
 function Show-EngineHeader {
-    Resize-Console
+    try {
+        $ui = $Host.UI.RawUI
+        $targetWidth  = 90
+        $targetHeight = 35
+
+        $width  = [Math]::Min($targetWidth,  $ui.MaxWindowSize.Width)
+        $height = [Math]::Min($targetHeight, $ui.MaxWindowSize.Height)
+
+        if ($width  -lt 80) { $width  = $ui.MaxWindowSize.Width }
+        if ($height -lt 25) { $height = $ui.MaxWindowSize.Height }
+
+        $ui.WindowSize = New-Object System.Management.Automation.Host.Size($width, $height)
+        $ui.BufferSize = New-Object System.Management.Automation.Host.Size($width, 2000)
+    } catch {}
 
     $lines = @(
         @{ Text = "WindowMaster Engine"; Color = "DarkYellow" }
@@ -1035,8 +1015,14 @@ function Show-EngineHeader {
         @{ Text = "Version $Version"; Color = "White" }
     )
 
-    $innerWidth = Get-ConsoleInnerWidth
-    if ($innerWidth -lt 40) { $innerWidth = 40 }
+    $innerWidth = 80
+    try {
+        $innerWidth = $Host.UI.RawUI.WindowSize.Width - 4
+        if ($innerWidth -lt 40) { $innerWidth = 40 }
+    } catch {
+        $innerWidth = 80
+    }
+
     $border = "-" * $innerWidth
 
     Clear-Host
@@ -1048,9 +1034,11 @@ function Show-EngineHeader {
         if ($pad -lt 0) { $pad = 0 }
         $spaces = " " * $innerWidth
         Write-Host (" |" + $spaces + "|") -ForegroundColor Cyan -NoNewline
-        $cursor = $Host.UI.RawUI.CursorPosition
-        $cursor.X = 2 + $pad
-        $Host.UI.RawUI.CursorPosition = $cursor
+        try {
+            $cursor = $Host.UI.RawUI.CursorPosition
+            $cursor.X = 2 + $pad
+            $Host.UI.RawUI.CursorPosition = $cursor
+        } catch {}
         Write-Host $line.Text -ForegroundColor $line.Color
     }
 
@@ -1059,7 +1047,11 @@ function Show-EngineHeader {
 }
 
 function Show-EngineFooter {
-    Show-ContactFooter
+    Write-Host "[ YouTube  ]  https://youtube.com/mikesunboxing" -ForegroundColor Yellow
+    Write-Host "[ Discord  ]  https://discord.gg/XtBTGQ6BDu" -ForegroundColor Yellow
+    Write-Host "[ Patreon  ]  https://patreon.com/mikesunboxing" -ForegroundColor Yellow
+    Write-Host "[ PayPal   ]  https://paypal.me/mikesunboxing" -ForegroundColor Yellow
+    Write-Host ""
 }
 
 function Run-DiagnosticsEngine {
@@ -1190,6 +1182,4 @@ try {
 } catch {
     Write-Diag "Unhandled engine error: $($_.Exception.Message)"
 }
-
-
-    
+'@
