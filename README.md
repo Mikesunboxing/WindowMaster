@@ -11,32 +11,17 @@ It is built for multi‑monitor setups, HDMI/DP displays, and systems where wind
 - Multi‑monitor support  
 - Per‑user configuration  
 - Scheduled task integration  
-- Clean, ASCII‑safe UI  
 - Diagnostic tools  
-- Optional auto‑update support  
 
 ## 🚀 Installation
-
-Run this command in PowerShell:
-
-irm https://raw.githubusercontent.com/Mikesunboxing/WindowMaster/main/WindowMaster.zip -OutFile WM.zip
-Expand-Archive WM.zip -DestinationPath "$env:LOCALAPPDATA\WindowMaster" -Force
-powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\WindowMaster\WindowMaster.ps1"
-
-This will launch the installer and guide you through setup.
+Save the latest ZIP file to your Computer.
+Extract the folder to a suitable location
+i.e. C:\WindowMaster(latest)
+Then run the WindowMaster EXE file.
 
 ## 🛠️ Requirements
 
 - Windows 10 or 11  
-- PowerShell 5.1 or newer  
-- No admin rights required  
-
-## 📂 Repository Structure
-
-WindowMaster.ps1      # Full installer + engine
-installer.ps1         # Bootstrapper
-version.txt           # Version tracking
-engine/               # Optional engine-only file
 
 
 ## 🧪 Diagnostics
